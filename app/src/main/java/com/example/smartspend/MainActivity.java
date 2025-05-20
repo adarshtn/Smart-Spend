@@ -1,5 +1,6 @@
 package com.example.smartspend;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.widget.ArrayAdapter;
@@ -38,6 +39,11 @@ public class MainActivity extends AppCompatActivity implements ExpenseAdapter.On
         categorySpinner = findViewById(R.id.categorySpinner);
         searchEditText = findViewById(R.id.searchEditText);
         filterButton = findViewById(R.id.filterButton);
+        Button monthlyReportButton = findViewById(R.id.monthlyReportButton);
+        monthlyReportButton.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, MonthlyReportActivity.class);
+            startActivity(intent);
+        });
 
         expenseRecyclerView = findViewById(R.id.expenseRecyclerView);
         expenseRecyclerView.setLayoutManager(new LinearLayoutManager(this));
