@@ -13,5 +13,7 @@
     <color name="category_health">#009688</color>
     <color name="category_others">#607D8B</color>
     <color name="black">#000000</color>
+    <color name="background">#FAFAFA</color> <!-- or any classy background color you prefer -->
+
 
 </resources>
