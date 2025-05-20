@@ -1,224 +1,122 @@
 package com.example.smartspend;
 
-import android.app.DatePickerDialog;
-import android.app.Dialog;
 import android.os.Bundle;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.view.View;
+import android.text.TextUtils;
 import android.widget.ArrayAdapter;
-import android.widget.AutoCompleteTextView;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.TextView;
-import android.widget.Toast;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.google.android.material.textfield.TextInputEditText;
-
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Locale;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements ExpenseAdapter.OnExpenseActionListener {
 
     private ExpenseManager expenseManager;
-    private ExpenseAdapter expenseAdapter;
-    private RecyclerView expenseRecyclerView;
+    private ExpenseAdapter adapter;
+    private List<Expense> allExpenses;
     private TextView totalExpenseTextView;
-    private FloatingActionButton addExpenseButton;
-    private SimpleDateFormat dateFormat;
-    private Date selectedDate;
-    private static final String[] CATEGORIES = {"Food", "Transport", "Entertainment", "Shopping", "Bills", "Health", "Others"};
+    private Spinner categorySpinner;
+    private EditText searchEditText;
+    private Button filterButton;
+    private RecyclerView expenseRecyclerView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Toolbar toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-
-        // Initialize
         expenseManager = new ExpenseManager(this);
-        dateFormat = new SimpleDateFormat("dd MMM yyyy", Locale.getDefault());
-        selectedDate = new Date();
+        allExpenses = expenseManager.getAllExpenses();
 
-        // Setup UI elements
         totalExpenseTextView = findViewById(R.id.totalExpenseTextView);
+        categorySpinner = findViewById(R.id.categorySpinner);
+        searchEditText = findViewById(R.id.searchEditText);
+        filterButton = findViewById(R.id.filterButton);
+
         expenseRecyclerView = findViewById(R.id.expenseRecyclerView);
-        addExpenseButton = findViewById(R.id.addExpenseButton);
-
-        // Setup RecyclerView
         expenseRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-        expenseAdapter = new ExpenseAdapter(this, expenseManager.getAllExpenses(), this);
-        expenseRecyclerView.setAdapter(expenseAdapter);
+        adapter = new ExpenseAdapter(this, allExpenses, expenseManager, this); // updated constructor
+        expenseRecyclerView.setAdapter(adapter);
 
-        // Setup FAB
-        addExpenseButton.setOnClickListener(v -> showAddExpenseDialog(null));
+        setupCategorySpinner();
+        displayTotalExpense(allExpenses);
 
-        // Update UI
-        updateUI();
+        filterButton.setOnClickListener(v -> applyFilters());
+        findViewById(R.id.addExpenseButton).setOnClickListener(v -> {
+            ExpenseDialog dialog = new ExpenseDialog(this, null, newExpense -> {
+                expenseManager.addExpense(newExpense);
+                refreshExpenses();
+            });
+            dialog.show();
+        });
+
     }
 
-    private void updateUI() {
-        // Update total expense
-        double total = expenseManager.getTotalExpenses();
-        totalExpenseTextView.setText(String.format("Total: ₹%.2f", total));
+    private void setupCategorySpinner() {
+        List<String> categories = new ArrayList<>();
+        categories.add("All");
+        categories.add("Food");
+        categories.add("Transport");
+        categories.add("Shopping");
+        categories.add("Bills");
+        categories.add("Entertainment");
+        categories.add("Other");
 
-        // Update expense list
-        expenseAdapter.updateExpenses(expenseManager.getAllExpenses());
+        ArrayAdapter<String> categoryAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, categories);
+        categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        categorySpinner.setAdapter(categoryAdapter);
     }
 
-    private void showAddExpenseDialog(Expense existingExpense) {
-        final boolean isEditing = existingExpense != null;
-        final Expense expense = isEditing ? existingExpense : new Expense();
+    private void applyFilters() {
+        String selectedCategory = categorySpinner.getSelectedItem().toString();
+        String searchText = searchEditText.getText().toString().trim();
 
-        // Create dialog
-        Dialog dialog = new Dialog(this);
-        dialog.setContentView(R.layout.dialog_add_expense);
-        dialog.setCancelable(true);
+        List<Expense> filteredList = new ArrayList<>();
 
-        // Get views
-        TextInputEditText amountEditText = dialog.findViewById(R.id.amountEditText);
-        AutoCompleteTextView categoryDropdown = dialog.findViewById(R.id.categoryDropdown);
-        TextInputEditText descriptionEditText = dialog.findViewById(R.id.descriptionEditText);
-        Button datePickerButton = dialog.findViewById(R.id.datePickerButton);
-        Button cancelButton = dialog.findViewById(R.id.cancelButton);
-        Button saveButton = dialog.findViewById(R.id.saveButton);
+        for (Expense expense : allExpenses) {
+            boolean matchesCategory = selectedCategory.equals("All") || expense.getCategory().equalsIgnoreCase(selectedCategory);
+            boolean matchesSearch = TextUtils.isEmpty(searchText) || expense.getDescription().toLowerCase().contains(searchText.toLowerCase());
 
-        // Setup category dropdown
-        ArrayAdapter<String> categoryAdapter = new ArrayAdapter<>(
-                this, android.R.layout.simple_dropdown_item_1line, CATEGORIES);
-        categoryDropdown.setAdapter(categoryAdapter);
-
-        // Fill with existing data if editing
-        if (isEditing) {
-            amountEditText.setText(String.valueOf(expense.getAmount()));
-            categoryDropdown.setText(expense.getCategory(), false);
-            descriptionEditText.setText(expense.getDescription());
-            selectedDate = expense.getDate();
-        } else {
-            selectedDate = new Date();
+            if (matchesCategory && matchesSearch) {
+                filteredList.add(expense);
+            }
         }
 
-        datePickerButton.setText(dateFormat.format(selectedDate));
+        adapter.updateExpenses(filteredList);
+        displayTotalExpense(filteredList);
+    }
 
-        // Setup date picker
-        datePickerButton.setOnClickListener(v -> {
-            Calendar calendar = Calendar.getInstance();
-            calendar.setTime(selectedDate);
+    private void refreshExpenses() {
+        allExpenses = expenseManager.getAllExpenses();
+        applyFilters();  // Maintain filters after update
+    }
 
-            DatePickerDialog datePickerDialog = new DatePickerDialog(
-                    MainActivity.this,
-                    (view, year, month, dayOfMonth) -> {
-                        calendar.set(Calendar.YEAR, year);
-                        calendar.set(Calendar.MONTH, month);
-                        calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth);
-                        selectedDate = calendar.getTime();
-                        datePickerButton.setText(dateFormat.format(selectedDate));
-                    },
-                    calendar.get(Calendar.YEAR),
-                    calendar.get(Calendar.MONTH),
-                    calendar.get(Calendar.DAY_OF_MONTH)
-            );
-            datePickerDialog.show();
+    private void displayTotalExpense(List<Expense> expenseList) {
+        double total = 0;
+        for (Expense e : expenseList) {
+            total += e.getAmount();
+        }
+        totalExpenseTextView.setText("Total: ₹" + String.format("%.2f", total));
+    }
+
+    // Implemented from OnExpenseActionListener
+    @Override
+    public void onExpenseUpdated() {
+        refreshExpenses();
+    }
+
+    // Called from ExpenseAdapter when Edit is clicked
+    public void showEditDialog(Expense expense) {
+        ExpenseDialog dialog = new ExpenseDialog(this, expense, updatedExpense -> {
+            expenseManager.updateExpense(updatedExpense);
+            refreshExpenses();
         });
-
-        // Setup buttons
-        cancelButton.setOnClickListener(v -> dialog.dismiss());
-
-        saveButton.setOnClickListener(v -> {
-            // Validate input
-            String amountString = amountEditText.getText().toString().trim();
-            String category = categoryDropdown.getText().toString().trim();
-            String description = descriptionEditText.getText().toString().trim();
-
-            if (amountString.isEmpty()) {
-                Toast.makeText(MainActivity.this, "Please enter an amount", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            if (category.isEmpty()) {
-                Toast.makeText(MainActivity.this, "Please select a category", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            try {
-                double amount = Double.parseDouble(amountString);
-
-                // Update or create expense
-                expense.setAmount(amount);
-                expense.setCategory(category);
-                expense.setDescription(description);
-                expense.setDate(selectedDate);
-
-                if (isEditing) {
-                    expenseManager.updateExpense(expense);
-                } else {
-                    expenseManager.addExpense(expense);
-                }
-
-                // Update UI and dismiss dialog
-                updateUI();
-                dialog.dismiss();
-
-                // Show success message
-                String message = isEditing ? "Expense updated" : "Expense added";
-                Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();
-
-            } catch (NumberFormatException e) {
-                Toast.makeText(MainActivity.this, "Please enter a valid amount", Toast.LENGTH_SHORT).show();
-            }
-        });
-
         dialog.show();
-    }
-
-    @Override
-    public void onEditExpense(Expense expense) {
-        showAddExpenseDialog(expense);
-    }
-
-    @Override
-    public void onDeleteExpense(Expense expense) {
-        new AlertDialog.Builder(this)
-                .setTitle("Delete Expense")
-                .setMessage("Are you sure you want to delete this expense?")
-                .setPositiveButton("Delete", (dialog, which) -> {
-                    expenseManager.deleteExpense(expense.getId());
-                    updateUI();
-                    Toast.makeText(MainActivity.this, "Expense deleted", Toast.LENGTH_SHORT).show();
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-
-        if (id == R.id.action_about) {
-            new AlertDialog.Builder(this)
-                    .setTitle("About SmartSpend")
-                    .setMessage("SmartSpend is a simple expense tracker app to help you manage your finances.\n\nVersion 1.0")
-                    .setPositiveButton("OK", null)
-                    .show();
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
     }
 }

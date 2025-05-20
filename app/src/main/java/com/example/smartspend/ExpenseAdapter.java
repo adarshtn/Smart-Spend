@@ -20,17 +20,21 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseAdapter.ExpenseV
 
     private List<Expense> expenseList;
     private Context context;
+    private ExpenseManager expenseManager;
     private OnExpenseActionListener listener;
     private SimpleDateFormat dateFormat;
 
+    // Functional interface with one method for lambda usage
     public interface OnExpenseActionListener {
-        void onEditExpense(Expense expense);
-        void onDeleteExpense(Expense expense);
+        void onExpenseUpdated();
     }
 
-    public ExpenseAdapter(Context context, List<Expense> expenseList, OnExpenseActionListener listener) {
+    public ExpenseAdapter(Context context, List<Expense> expenseList,
+                          ExpenseManager manager,
+                          OnExpenseActionListener listener) {
         this.context = context;
         this.expenseList = expenseList;
+        this.expenseManager = manager;
         this.listener = listener;
         this.dateFormat = new SimpleDateFormat("dd MMM yyyy", Locale.getDefault());
     }
@@ -78,7 +82,7 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseAdapter.ExpenseV
             descriptionTextView.setText(expense.getDescription());
             dateTextView.setText(dateFormat.format(expense.getDate()));
 
-            // Set background color based on category
+            // Set category background color
             setCategoryBackground(expense.getCategory());
 
             menuButton.setOnClickListener(v -> {
@@ -87,10 +91,16 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseAdapter.ExpenseV
                 popupMenu.setOnMenuItemClickListener(item -> {
                     int id = item.getItemId();
                     if (id == R.id.action_edit) {
-                        listener.onEditExpense(expense);
+                        // Show edit dialog from context if it's MainActivity
+                        if (context instanceof MainActivity) {
+                            ((MainActivity) context).showEditDialog(expense);
+                        }
                         return true;
                     } else if (id == R.id.action_delete) {
-                        listener.onDeleteExpense(expense);
+                        expenseManager.deleteExpense(expense.getId());
+                        expenseList.remove(getAdapterPosition());
+                        notifyItemRemoved(getAdapterPosition());
+                        listener.onExpenseUpdated(); // Refresh chart or summary
                         return true;
                     }
                     return false;
@@ -101,7 +111,6 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseAdapter.ExpenseV
 
         private void setCategoryBackground(String category) {
             int backgroundColor;
-
             switch (category.toLowerCase()) {
                 case "food":
                     backgroundColor = R.color.category_food;
@@ -125,7 +134,6 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseAdapter.ExpenseV
                     backgroundColor = R.color.category_others;
                     break;
             }
-
             categoryTextView.setBackgroundResource(R.drawable.category_background);
             categoryTextView.getBackground().setTint(context.getResources().getColor(backgroundColor));
         }
