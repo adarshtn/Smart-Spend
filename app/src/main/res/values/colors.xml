@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#1E88E5</color>
+    <color name="primary_dark">#1565C0</color>
+    <color name="primary_light">#64B5F6</color>
+    <color name="accent">#FFC107</color>
+    <color name="expense_red">#E53935</color>
+    <color name="category_food">#FF5722</color>
+    <color name="category_transport">#9C27B0</color>
+    <color name="category_entertainment">#4CAF50</color>
+    <color name="category_shopping">#F44336</color>
+    <color name="category_bills">#2196F3</color>
+    <color name="category_health">#009688</color>
+    <color name="category_others">#607D8B</color>
+</resources>
