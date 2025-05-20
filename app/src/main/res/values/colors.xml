@@ -12,4 +12,6 @@
     <color name="category_bills">#2196F3</color>
     <color name="category_health">#009688</color>
     <color name="category_others">#607D8B</color>
+    <color name="black">#000000</color>
+
 </resources>
